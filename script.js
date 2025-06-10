@@ -124,7 +124,7 @@ async function handleRegister(event) {
             throw new Error('パスワードが一致しません');
         }
 
-        if (isAdmin && adminPassword !== 'admin06') {
+        if (isAdmin && adminPassword !== 'uneiaco') {
             throw new Error('管理者パスワードが正しくありません');
         }
 
