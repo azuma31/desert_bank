@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>W(ワラット)ポイント管理システム</title>
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- トースト通知コンテナ -->
+        <div id="toastContainer" class="toast-container"></div>
+
+        <!-- システム停止メッセージ -->
+        <div id="systemMessage" class="system-message hidden">
+            <div>
+                <h2>システムは一時的に停止中です</h2>
+                <p>管理者によりシステムが停止されています。しばらくお待ちください。</p>
+                <p><small>※ 完全管理アカウントはログイン可能です</small></p>
+            </div>
+        </div>
+
+        <!-- ログイン画面 -->
+        <div id="loginScreen" class="screen">
+            <div class="container">
+                <h1>W(ワラット)ポイントシステム</h1>
+                <div class="form-container">
+                    <h2>ログイン</h2>
+                    <form id="loginForm">
+                        <input type="text" id="loginUsername" placeholder="ユーザー名" required>
+                        <input type="password" id="loginPassword" placeholder="パスワード" required>
+                        <label>
+                            <input type="checkbox" id="autoLogin"> 自動ログイン
+                        </label>
+                        <button type="submit">ログイン</button>
+                    </form>
+                    <p><a href="#" id="showRegister">新規登録はこちら</a></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 新規登録画面 -->
+        <div id="registerScreen" class="screen hidden">
+            <div class="container">
+                <h1>新規登録</h1>
+                <div class="form-container">
+                    <form id="registerForm">
+                        <input type="text" id="regUsername" placeholder="ユーザー名" required>
+                        <input type="password" id="regPassword" placeholder="パスワード" required>
+
+                        <div class="account-types">
+                            <label>
+                                <input type="radio" name="accountType" value="general" checked> 一般アカウント
+                            </label>
+                            <label>
+                                <input type="radio" name="accountType" value="finance"> 財務用管理アカウント
+                            </label>
+                            <label>
+                                <input type="radio" name="accountType" value="admin"> 完全管理アカウント
+                            </label>
+                        </div>
+
+                        <div id="specialPasswordContainer" class="hidden">
+                            <input type="password" id="specialPassword" placeholder="特別パスワード">
+                        </div>
+
+                        <button type="submit">登録</button>
+                    </form>
+                    <p><a href="#" id="showLogin">ログインはこちら</a></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 一般ユーザーダッシュボード -->
+        <div id="generalDashboard" class="screen hidden">
+            <div class="container">
+                <div class="header">
+                    <h1>W(ワラット)ポイントシステム</h1>
+                    <div class="user-info">
+                        <span id="generalUsername"></span>
+                        <button id="generalLogout">ログアウト</button>
+                    </div>
+                </div>
+
+                <div class="balance-card">
+                    <h2>現在の残高</h2>
+                    <div class="balance" id="generalBalance">0 W</div>
+                </div>
+
+                <div class="form-container">
+                    <h3>送金</h3>
+                    <form id="transferForm">
+                        <div class="input-container">
+                            <input type="text" id="transferTo" placeholder="送金先ユーザー名" required autocomplete="off">
+                            <div id="transferToDropdown" class="dropdown-list hidden"></div>
+                        </div>
+                        <input type="number" id="transferAmount" placeholder="送金額" required min="1">
+                        <button type="submit">送金</button>
+                    </form>
+                </div>
+
+                <div class="history-container">
+                    <h3>送金履歴</h3>
+                    <div id="transferHistory"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 財務管理ダッシュボード -->
+        <div id="financeDashboard" class="screen hidden">
+            <div class="container">
+                <div class="header">
+                    <h1>財務管理システム</h1>
+                    <div class="user-info">
+                        <span id="financeUsername"></span>
+                        <button id="financeLogout">ログアウト</button>
+                    </div>
+                </div>
+
+                <div class="balance-card">
+                    <h2>残高</h2>
+                    <div class="balance">∞ W (無限)</div>
+                </div>
+
+                <div class="form-container">
+                    <h3>配布</h3>
+                    <form id="distributeForm">
+                        <div class="input-container">
+                            <input type="text" id="distributeTo" placeholder="配布先ユーザー名" required autocomplete="off">
+                            <div id="distributeToDropdown" class="dropdown-list hidden"></div>
+                        </div>
+                        <input type="number" id="distributeAmount" placeholder="配布額" required min="1">
+                        <button type="submit">配布</button>
+                    </form>
+                </div>
+
+                <div class="history-container">
+                    <h3>配布履歴</h3>
+                    <div id="distributeHistory"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 完全管理ダッシュボード -->
+        <div id="adminDashboard" class="screen hidden">
+            <div class="container">
+                <div class="header">
+                    <h1>完全管理システム</h1>
+                    <div class="user-info">
+                        <span id="adminUsername"></span>
+                        <button id="adminLogout">ログアウト</button>
+                    </div>
+                </div>
+
+                <div class="admin-controls">
+                    <button id="toggleSystem">システム停止/開始</button>
+                    <span id="systemStatus">システム状態: 稼働中</span>
+                    <small style="color: #666; margin-left: 10px;">※ 管理者は停止中でもアクセス可能</small>
+                </div>
+
+                <div class="balance-card">
+                    <h2>残高</h2>
+                    <div class="balance">∞ W (無限)</div>
+                </div>
+
+                <div class="form-container">
+                    <h3>配布</h3>
+                    <form id="adminDistributeForm">
+                        <div class="input-container">
+                            <input type="text" id="adminDistributeTo" placeholder="配布先ユーザー名" required autocomplete="off">
+                            <div id="adminDistributeToDropdown" class="dropdown-list hidden"></div>
+                        </div>
+                        <input type="number" id="adminDistributeAmount" placeholder="配布額" required min="1">
+                        <button type="submit">配布</button>
+                    </form>
+                </div>
+
+                <div class="form-container">
+                    <h3>アカウント管理</h3>
+                    <input type="text" id="manageUsername" placeholder="管理対象ユーザー名">
+                    <div class="admin-actions">
+                        <button id="freezeAccount">アカウント凍結/解除</button>
+                        <button id="deleteAccount">アカウント削除</button>
+                        <input type="number" id="newBalance" placeholder="新しい残高">
+                        <button id="updateBalance">残高変更</button>
+                    </div>
+                </div>
+
+                <div class="form-container">
+                    <h3>IPアドレス管理</h3>
+                    <div style="margin-bottom: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                        <small>現在のIPアドレス: <span id="currentIpDisplay">取得中...</span></small>
+                    </div>
+                    <div style="margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px;">
+                        <small style="color: #856404;">
+                            ⚠️ <strong>重要:</strong> 現在のIPアドレスをブロックすると、あなた自身もアクセスできなくなります。<br>
+                            緊急時はFirebase Consoleから直接設定を変更してください。
+                        </small>
+                    </div>
+                    <input type="text" id="manageIpAddress" placeholder="IPアドレス（例：192.168.1.100）">
+                    <div class="admin-actions">
+                        <button id="blockIpAddress">IPアドレスをブロック</button>
+                        <button id="unblockIpAddress">IPアドレスのブロック解除</button>
+                        <button id="viewBlockedIps">ブロック中のIP一覧</button>
+                    </div>
+                    <div id="blockedIpsList" class="blocked-ips-list hidden"></div>
+                </div>
+
+                <div class="history-container">
+                    <h3>全アカウント情報</h3>
+                    <div id="allAccounts"></div>
+                </div>
+
+                <div class="history-container">
+                    <h3>管理履歴</h3>
+                    <div id="adminHistory"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script1.js"></script>
+    <script src="script2.js"></script>
+</body>
+</html>
